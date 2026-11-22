@@ -42,7 +42,20 @@ OpenAPI docs are at `http://localhost:8000/docs`.
 
 ## Firmware setup
 
-Open `firmware/VoiceInteractiveRobot/VoiceInteractiveRobot.ino` in Arduino IDE. Install ArduinoJson 6 and use the Arduino-ESP32 3.x core (the I2S driver uses the IDF 5 standard-mode API). Configure ESP32S3 Dev Module, USB CDC On Boot, 16 MB flash, OPI PSRAM, and a suitable partition scheme as specified by the official T4-S3 guide. Set Wi-Fi, API URL, bearer token, and trusted root CA in `include/Secrets.h` (this local-only file is ignored by Git; start from `Secrets.example.h`). Compile and upload over USB-C. Hold the BOOT button to record; release to upload and play the reply.
+Open `firmware/VoiceInteractiveRobot/VoiceInteractiveRobot.ino` in Arduino IDE. Use Arduino-ESP32 3.x (the I2S driver uses the IDF 5 standard-mode API) and set the following options, matching LILYGO's T4-S3 guide:
+
+| Arduino IDE setting | Value |
+| --- | --- |
+| Board | ESP32S3 Dev Module |
+| USB CDC On Boot | Enabled |
+| CPU Frequency | 240 MHz (WiFi) |
+| Flash Mode / Size | QIO 80 MHz / 16 MB |
+| PSRAM | OPI PSRAM |
+| Partition Scheme | 16M Flash (3MB APP/9.9MB FATFS) |
+| Upload Mode / Speed | UART0 / Hardware CDC / 921600 |
+| USB Mode | Hardware CDC and JTAG |
+
+Set Wi-Fi, API URL, bearer token, and trusted root CA in `include/Secrets.h` (this local-only file is ignored by Git; start from `Secrets.example.h`). Compile and upload over USB-C. Hold the BOOT button to record; release to upload and play the reply.
 
 The firmware calls `POST /v1/voice/audio` with `multipart/form-data` field `file` containing 16 kHz mono signed 16-bit PCM WAV. It expects raw 24 kHz mono signed 16-bit little-endian PCM and metadata headers. Use an HTTPS endpoint with a trusted certificate; a private LAN deployment still needs a certificate trusted by the ESP32.
 
@@ -52,4 +65,4 @@ The firmware calls `POST /v1/voice/audio` with `multipart/form-data` field `file
 - `backend/`: API, settings, audio helpers, SQLite store, and provider adapters.
 - `docs/`: API contract, board and wiring details, architecture, and troubleshooting.
 
-See [API](docs/API.md), [hardware](docs/HARDWARE.md), [architecture](docs/ARCHITECTURE.md), and [troubleshooting](docs/TROUBLESHOOTING.md).
+See [API](docs/API.md), [hardware](docs/HARDWARE.md), [architecture](docs/ARCHITECTURE.md), [troubleshooting](docs/TROUBLESHOOTING.md), and [verification results](docs/VERIFICATION.md).

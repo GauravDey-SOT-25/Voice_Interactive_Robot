@@ -6,4 +6,4 @@
 - **No microphone samples:** check 3.3 V, common ground, BCLK/WS/DOUT wiring, and mic channel select. Do not power the INMP441 from 5 V.
 - **Amplifier silent or distorted:** check MAX98357A supply/current, common ground, DIN/BCLK/WS, speaker impedance, and PCM metadata. Do not drive the speaker from an ESP32 GPIO.
 - **TLS connection fails:** install a trusted TLS certificate and place the issuing root CA in local `Secrets.h`; TLS verification is intentionally enabled.
-- **Arduino I2S symbols unavailable:** install/select Arduino-ESP32 3.x, which bundles ESP-IDF 5's standard I2S driver. This project has not been compile-verified against an installed board package in this environment yet.
+- **Arduino I2S symbols unavailable:** install/select Arduino-ESP32 3.x, which bundles ESP-IDF 5's standard I2S driver. The sketch was compiled in Arduino IDE 2.3.10 against the installed Arduino-ESP32 core 3.3.12 with the T4-S3 16 MB/OPI PSRAM settings. It was not uploaded to a physical board in this environment.
