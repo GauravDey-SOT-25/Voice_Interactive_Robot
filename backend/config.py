@@ -12,8 +12,8 @@ class Settings(BaseSettings):
     ai_mode: str = "mock"
     openai_api_key: str = ""
     openai_model: str = "gpt-4o-mini"
-    openai_stt_model: str = "whisper-1"
-    openai_tts_model: str = "tts-1"
+    openai_stt_model: str = "gpt-transcribe"
+    openai_tts_model: str = "gpt-4o-mini-tts"
     openai_tts_voice: str = "alloy"
     system_prompt: str = (
         "You are a friendly, concise voice assistant inside a small interactive robot. "

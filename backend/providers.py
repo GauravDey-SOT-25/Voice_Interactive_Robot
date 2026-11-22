@@ -51,12 +51,15 @@ class OpenAIProvider:
         return result.text.strip()
 
     async def reply(self, messages: list[dict[str, str]]) -> str:
-        result = await self.client.chat.completions.create(
+        instructions = messages[0]["content"] if messages and messages[0]["role"] == "system" else ""
+        input_messages = messages[1:] if instructions else messages
+        result = await self.client.responses.create(
             model=self.settings.openai_model,
-            messages=messages,
-            max_tokens=300,
+            instructions=instructions,
+            input=input_messages,
+            max_output_tokens=300,
         )
-        return (result.choices[0].message.content or "").strip()
+        return result.output_text.strip()
 
     async def speak(self, text: str) -> SpeechResult:
         response = await self.client.audio.speech.create(

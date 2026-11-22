@@ -12,4 +12,4 @@ flowchart LR
   MCU -->|I2S playback| Amp[MAX98357A + speaker]
 ```
 
-`VoiceProvider` is the service boundary for transcription, chat completion, and speech synthesis. `MockProvider` is deterministic and offline. `OpenAIProvider` uses the official OpenAI Python SDK, with provider keys kept on the server. The API owns validation and conversation orchestration; firmware has no provider-specific logic. Wake word, VAD, streaming capture, interruption handling and acoustic echo cancellation are follow-on work.
+`VoiceProvider` is the service boundary for transcription, chat completion, and speech synthesis. `MockProvider` is deterministic and offline. `OpenAIProvider` uses the official OpenAI Python SDK, with provider keys kept on the server. The API owns validation and conversation orchestration; firmware has no provider-specific logic. OpenAI currently schedules its standalone Speech API models for shutdown on 2027-01-06, so plan to replace that provider adapter before then. Wake word, VAD, streaming capture, interruption handling and acoustic echo cancellation are follow-on work.

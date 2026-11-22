@@ -30,6 +30,8 @@ Run checks with `pytest` and `ruff check backend`.
 
 Mock mode needs no API key. To use OpenAI, set `AI_MODE=openai` and `OPENAI_API_KEY` in the server's untracked `.env`. Never put provider credentials in firmware. Add a long random `DEVICE_AUTH_TOKEN` to the server and matching firmware configuration before exposing the API beyond a trusted development network. Use HTTPS with a trusted certificate in deployment.
 
+The OpenAI adapter uses the Responses API, `gpt-transcribe`, and the standalone Speech API. OpenAI currently schedules its Speech API models, including `gpt-4o-mini-tts`, to shut down on January 6, 2027; plan to move the `VoiceProvider.speak` adapter to the Realtime API or another provider before that date. No OpenAI request was made during local verification.
+
 Useful calls (server defaults to mock):
 
 ```sh
