@@ -120,7 +120,11 @@ bool RobotClient::processVoice(const int16_t* samples, size_t frameCount, AudioE
     if (readLimit == 0) { delay(1); continue; }
     const size_t count = stream->readBytes(buffer, readLimit);
     if (count == 0) { ok = false; break; }
-    if (!audio.playPcm(buffer, count)) { ok = false; break; }
+    if (!audio.playPcm(buffer, count)) {
+      ok = false;
+      if (audio.wasBargeInRequested()) Serial.println("Barge-in accepted; stopping current response audio");
+      break;
+    }
     remaining -= count;
   }
   audio.stopPlayback();

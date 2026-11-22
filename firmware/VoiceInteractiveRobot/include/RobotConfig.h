@@ -4,15 +4,29 @@
 #include <stddef.h>
 
 namespace RobotConfig {
-constexpr int kI2sPort = 0;
-constexpr int kBclkPin = 21;
-constexpr int kWsPin = 38;
+constexpr int kMicI2sPort = 0;
+constexpr int kSpeakerI2sPort = 1;
+constexpr int kMicBclkPin = 21;
+constexpr int kMicWsPin = 38;
 constexpr int kMicDataPin = 47;
+constexpr int kSpeakerBclkPin = 41;
+constexpr int kSpeakerWsPin = 42;
 constexpr int kSpeakerDataPin = 48;
-constexpr int kPushToTalkPin = 0;  // T4-S3 active-low BOOT button
 constexpr uint32_t kMicSampleRate = 16000;
 constexpr uint32_t kSpeakerSampleRate = 24000;
-constexpr uint32_t kMaxRecordingSeconds = 10;
-constexpr uint32_t kCapturePollMs = 20;
-constexpr size_t kCaptureFrames = kMicSampleRate * kMaxRecordingSeconds;
+constexpr uint32_t kSilenceEndMs = 800;
+constexpr uint32_t kMinimumUtteranceMs = 250;
+constexpr uint32_t kMaximumUtteranceMs = 15000;
+constexpr uint32_t kPreRollMs = 320;
+constexpr uint32_t kBargeInConfirmMs = 220;
+constexpr float kNoiseFloorTrackingAlpha = 0.05f;
+constexpr float kNoiseGateRatio = 2.2f;
+constexpr int16_t kNoiseGateMinimumThreshold = 160;
+constexpr float kNoiseFloorMaximum = 1000.0f;
+constexpr uint32_t kNetworkRetryInitialMs = 1000;
+constexpr uint32_t kNetworkRetryMaximumMs = 30000;
+constexpr uint8_t kMaximumNetworkAttempts = 5;
+constexpr size_t kPreRollFrames = kMicSampleRate * kPreRollMs / 1000;
+constexpr size_t kMaximumUtteranceFrames = kMicSampleRate * kMaximumUtteranceMs / 1000;
+constexpr size_t kCaptureCapacityFrames = kPreRollFrames + kMaximumUtteranceFrames;
 }
