@@ -13,4 +13,6 @@ Base URL is configured on the server. All `/v1/*` routes accept `Authorization: 
 
 Errors use FastAPI JSON `{detail: ...}`. Invalid WAV/parameters return 422, oversized audio 413, bad token 401, provider timeout 504, and provider failure 502. A generated conversation ID is returned for clients that omit one. IDs are scoped in SQLite but are not access-control boundaries: use device authentication and network controls.
 
+In `AI_MODE=mock`, the transcription/reply values are deterministic and speech output is a short 660 Hz test tone followed by silence, rather than synthesized words.
+
 The robot output format is raw signed 16-bit little-endian, mono, 24,000 samples/second (not WAV). Input is a standard 44-byte PCM WAV header plus signed 16-bit little-endian mono samples at 16,000 samples/second. The firmware uses `POST /v1/voice/audio` so response audio can be streamed without base64 expansion.

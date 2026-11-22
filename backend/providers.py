@@ -1,3 +1,5 @@
+import math
+import struct
 from dataclasses import dataclass
 from typing import Protocol
 
@@ -31,8 +33,13 @@ class MockProvider:
         return f"I heard you say: {latest}"[:600]
 
     async def speak(self, text: str) -> SpeechResult:
-        # Valid 24 kHz mono PCM silence; mock mode exercises transport without a TTS credential.
-        return SpeechResult(pcm=b"\x00\x00" * 2400)
+        # An audible 660 Hz tone validates the speaker path without a TTS credential.
+        sample_rate = 24_000
+        tone_frames = sample_rate // 5
+        silence_frames = sample_rate // 10
+        samples = [int(5000 * math.sin(2 * math.pi * 660 * i / sample_rate)) for i in range(tone_frames)]
+        samples.extend([0] * silence_frames)
+        return SpeechResult(pcm=struct.pack(f"<{len(samples)}h", *samples))
 
 
 class OpenAIProvider:

@@ -32,7 +32,8 @@ def test_health_chat_history_and_speech(tmp_path):
         second = client.post("/v1/chat", json={"text": "Again", "conversation_id": "c1"})
         assert second.status_code == 200
         speech = client.post("/v1/speech", json={"text": "Hello"})
-        assert speech.content == b"\x00\x00" * 2400
+        assert len(speech.content) == 7200 * 2
+        assert speech.content != b"\x00" * len(speech.content)
         assert speech.headers["x-sample-rate"] == "24000"
 
 
@@ -44,7 +45,7 @@ def test_voice_endpoints_contract_and_audio_validation(tmp_path):
         assert body["transcript"] == "Hello robot"
         assert body["sample_rate"] == 24_000
         robot = client.post("/v1/voice/audio", files={"file": ("voice.wav", make_wav(), "audio/wav")})
-        assert robot.content == b"\x00\x00" * 2400
+        assert robot.content != b"\x00" * len(robot.content)
         assert robot.headers["x-audio-format"] == "s16le"
         invalid = client.post("/v1/transcribe", files={"file": ("bad.wav", b"bad", "audio/wav")})
         assert invalid.status_code == 422

@@ -8,7 +8,7 @@ The backend runs offline in mock mode by default. OpenAI credentials are only re
 
 - FastAPI health, transcription, text chat, speech, complete voice, and robot-oriented raw-PCM endpoints.
 - SQLite conversation history, optional bearer-token device authentication, payload limits, WAV validation, and provider timeouts.
-- Mock provider for repeatable local development and an OpenAI STT/chat/TTS provider.
+- Mock provider for repeatable local development (including a speaker-test tone) and an OpenAI STT/chat/TTS provider.
 - Arduino IDE C++ sources for Wi-Fi, secure HTTP, INMP441 capture, WAV upload, response playback and simple button-driven half-duplex state handling.
 
 Firmware compilation and real-board I2S/audio behavior depend on the installed Arduino-ESP32 3.x core and physical wiring. See [hardware connections](docs/HARDWARE.md) before connecting audio hardware.
