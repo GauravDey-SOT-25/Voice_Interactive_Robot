@@ -1,0 +1,38 @@
+# Secrets and local configuration
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+*.egg-info/
+build/
+dist/
+
+# Runtime data, logs, and generated audio
+*.db
+*.sqlite
+*.sqlite3
+*.wav
+*.pcm
+*.log
+
+# Arduino IDE / build artifacts
+.arduino/
+firmware/.pio/
+firmware/build/
+firmware/.DS_Store
+
+# Editors and OS
+.DS_Store
+.idea/
+.vscode/
+*.swp

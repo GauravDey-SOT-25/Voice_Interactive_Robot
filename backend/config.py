@@ -1,0 +1,28 @@
+from functools import lru_cache
+
+from pydantic_settings import BaseSettings, SettingsConfigDict
+
+
+class Settings(BaseSettings):
+    app_env: str = "development"
+    database_path: str = "./data/conversations.sqlite3"
+    device_auth_token: str = ""
+    max_audio_bytes: int = 10 * 1024 * 1024
+    request_timeout_seconds: float = 45.0
+    ai_mode: str = "mock"
+    openai_api_key: str = ""
+    openai_model: str = "gpt-4o-mini"
+    openai_stt_model: str = "whisper-1"
+    openai_tts_model: str = "tts-1"
+    openai_tts_voice: str = "alloy"
+    system_prompt: str = (
+        "You are a friendly, concise voice assistant inside a small interactive robot. "
+        "Speak naturally and keep answers brief."
+    )
+
+    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
+
+
+@lru_cache
+def get_settings() -> Settings:
+    return Settings()
