@@ -2,54 +2,29 @@
 
 #include "../include/AudioEngine.h"
 #include "../include/RobotSecrets.h"
-#include "../include/Wav.h"
 
-#include <HTTPClient.h>
 #include <WiFi.h>
-#include <WiFiClientSecure.h>
+#include <esp_heap_caps.h>
+
+#ifndef ROBOT_LIVE_WS_HOST
+#define ROBOT_LIVE_WS_HOST "robot-api.example.com"
+#endif
+#ifndef ROBOT_LIVE_WS_PORT
+#define ROBOT_LIVE_WS_PORT 443
+#endif
+#ifndef ROBOT_LIVE_WS_PATH
+#define ROBOT_LIVE_WS_PATH "/v1/voice/live?provider=auto"
+#endif
 
 namespace {
-constexpr char kBoundary[] = "----T4S3VoiceBoundary42";
-constexpr size_t kHeaderBytes = 44;
-constexpr size_t kMaxResponseBytes = 2 * 1024 * 1024;
-
-class MultipartStream final : public Stream {
- public:
-  MultipartStream(const uint8_t* wav, size_t wavBytes, const String& boundary)
-      : wav_(wav), wavBytes_(wavBytes),
-        prefix_("--" + boundary + "\r\nContent-Disposition: form-data; name=\"device_id\"\r\n\r\nt4-s3\r\n"),
-        suffix_("\r\n--" + boundary + "--\r\n") {}
-  void setConversationId(const String& id, const String& boundary) {
-    const String filePart = "\r\n--" + boundary + "\r\nContent-Disposition: form-data; name=\"file\"; filename=\"voice.wav\"\r\nContent-Type: audio/wav\r\n\r\n";
-    const String conversationPart = "\r\n--" + boundary + "\r\nContent-Disposition: form-data; name=\"conversation_id\"\r\n\r\n" + id;
-    prefix_ = "--" + boundary + "\r\nContent-Disposition: form-data; name=\"device_id\"\r\n\r\nt4-s3" + conversationPart + filePart;
-  }
-  int available() override { return static_cast<int>(prefix_.length() + wavBytes_ + suffix_.length() - position_); }
-  int read() override { uint8_t byte; return readBytes(&byte, 1) == 1 ? byte : -1; }
-  int peek() override { return -1; }
-  void flush() override {}
-  size_t write(uint8_t) override { return 0; }
-  size_t readBytes(char* buffer, size_t length) override {
-    return readBytes(reinterpret_cast<uint8_t*>(buffer), length);
-  }
-  size_t readBytes(uint8_t* buffer, size_t length) {
-    size_t count = 0;
-    while (count < length && position_ < totalLength()) {
-      if (position_ < prefix_.length()) buffer[count++] = prefix_[position_++];
-      else if (position_ < prefix_.length() + wavBytes_) buffer[count++] = wav_[position_++ - prefix_.length()];
-      else buffer[count++] = suffix_[position_++ - prefix_.length() - wavBytes_];
-    }
-    return count;
-  }
-  size_t totalLength() const { return prefix_.length() + wavBytes_ + suffix_.length(); }
- private:
-  const uint8_t* wav_;
-  size_t wavBytes_;
-  String prefix_;
-  String suffix_;
-  size_t position_ = 0;
-};
+constexpr size_t kAudioQueueDepth = 8;
+constexpr size_t kMaxSocketAudioBytes = 8192;
+constexpr char kStartMessage[] =
+    "{\"type\":\"start\",\"format\":\"s16le\",\"sample_rate\":16000,\"channels\":1}";
+constexpr char kInterruptMessage[] = "{\"type\":\"interrupt\"}";
 }
+
+RobotClient* RobotClient::activeClient_ = nullptr;
 
 bool RobotClient::connectWifi() {
   WiFi.mode(WIFI_STA);
@@ -59,75 +34,126 @@ bool RobotClient::connectWifi() {
   return WiFi.status() == WL_CONNECTED;
 }
 
-bool RobotClient::processVoice(const int16_t* samples, size_t frameCount, AudioEngine& audio) {
-  if (WiFi.status() != WL_CONNECTED && !connectWifi()) return false;
-  const size_t pcmBytes = frameCount * sizeof(int16_t);
-  const size_t wavBytes = kHeaderBytes + pcmBytes;
-  uint8_t* wav = static_cast<uint8_t*>(ps_malloc(wavBytes));
-  if (wav == nullptr) return false;
-  writeWavHeader(wav, pcmBytes, 16000);
-  memcpy(wav + kHeaderBytes, samples, pcmBytes);
+bool RobotClient::startLive(AudioEngine& audio) {
+  audio_ = &audio;
+  activeClient_ = this;
+  inputQueue_ = xQueueCreate(kAudioQueueDepth, sizeof(AudioFrame));
+  if (inputQueue_ == nullptr) return false;
+  socket_.onEvent(socketEvent);
+  socket_.setReconnectInterval(3000);
+  socket_.enableHeartbeat(15000, 5000, 2);
+  if (xTaskCreatePinnedToCore(networkTask, "voice_live_ws", 12288, this, 4, nullptr, 0) != pdPASS) {
+    vQueueDelete(inputQueue_);
+    inputQueue_ = nullptr;
+    return false;
+  }
+  return true;
+}
 
-  WiFiClientSecure tls;
-  tls.setCACert(ROBOT_ROOT_CA_PEM);
-  HTTPClient http;
-  http.setTimeout(60000);
-  const String url = ROBOT_API_URL;
-  if (!http.begin(tls, url)) { free(wav); return false; }
-  const String boundary = kBoundary;
-  http.addHeader("Content-Type", "multipart/form-data; boundary=" + boundary);
-  http.addHeader("Authorization", "Bearer " ROBOT_DEVICE_TOKEN);
-  static const char* responseHeaders[] = {"X-Audio-Format", "X-Sample-Rate", "X-Channels", "X-Conversation-Id"};
-  http.collectHeaders(responseHeaders, 4);
+bool RobotClient::sendAudio(const int16_t* samples, size_t frameCount) {
+  if (inputQueue_ == nullptr || samples == nullptr || frameCount == 0 || frameCount > 1024) return false;
+  AudioFrame frame = {};
+  frame.frames = static_cast<uint16_t>(frameCount);
+  memcpy(frame.samples, samples, frameCount * sizeof(int16_t));
+  if (xQueueSend(inputQueue_, &frame, 0) == pdTRUE) return true;
 
-  MultipartStream body(wav, wavBytes, boundary);
-  if (!conversationId_.isEmpty()) body.setConversationId(conversationId_, boundary);
-  const int status = http.sendRequest("POST", &body, body.totalLength());
-  free(wav);
-  if (status != HTTP_CODE_OK) {
-    Serial.printf("Voice API failed: HTTP %d\n", status);
-    http.end();
-    return false;
-  }
-  conversationId_ = http.header("X-Conversation-Id");
-  if (http.header("X-Audio-Format") != "s16le" || http.header("X-Sample-Rate") != "24000" || http.header("X-Channels") != "1") {
-    Serial.println("Voice API returned unsupported audio format");
-    http.end();
-    return false;
-  }
-  const int length = http.getSize();
-  if (length <= 0 || static_cast<size_t>(length) > kMaxResponseBytes || length % 2 != 0) {
-    Serial.println("Voice API returned invalid PCM length");
-    http.end();
-    return false;
-  }
-  Serial.printf("Voice turn received (conversation %s)\n", http.header("X-Conversation-Id").c_str());
-  if (!audio.startPlayback()) { http.end(); return false; }
-  WiFiClient* stream = http.getStreamPtr();
-  uint8_t buffer[2048];
-  size_t remaining = static_cast<size_t>(length);
-  bool ok = true;
-  while (remaining > 0) {
-    const size_t requested = min(sizeof(buffer), remaining);
-    const int available = stream->available();
-    if (available <= 0) {
-      if (!stream->connected()) { ok = false; break; }
-      delay(1);
-      continue;
-    }
-    size_t readLimit = min(requested, static_cast<size_t>(available));
-    readLimit &= ~static_cast<size_t>(1);  // preserve complete s16le samples
-    if (readLimit == 0) { delay(1); continue; }
-    const size_t count = stream->readBytes(buffer, readLimit);
-    if (count == 0) { ok = false; break; }
-    if (!audio.playPcm(buffer, count)) {
-      ok = false;
-      if (audio.wasBargeInRequested()) Serial.println("Barge-in accepted; stopping current response audio");
+  // Keep the stream near real time when Wi-Fi stalls: discard the oldest frame and enqueue this one.
+  AudioFrame discarded;
+  xQueueReceive(inputQueue_, &discarded, 0);
+  return xQueueSend(inputQueue_, &frame, 0) == pdTRUE;
+}
+
+void RobotClient::requestBargeIn() { interruptionPending_ = true; }
+
+void RobotClient::networkTask(void* context) {
+  static_cast<RobotClient*>(context)->runNetwork();
+}
+
+void RobotClient::socketEvent(WStype_t type, uint8_t* payload, size_t length) {
+  if (activeClient_ != nullptr) activeClient_->handleSocketEvent(type, payload, length);
+}
+
+void RobotClient::handleSocketEvent(WStype_t type, uint8_t* payload, size_t length) {
+  switch (type) {
+    case WStype_CONNECTED:
+      connected_ = true;
+      startSent_ = false;
+      outputActive_ = false;
+      Serial.println("Live speech WebSocket connected");
+      break;
+    case WStype_DISCONNECTED:
+      connected_ = false;
+      startSent_ = false;
+      if (outputActive_) audio_->stopPlayback();
+      outputActive_ = false;
+      Serial.println("Live speech WebSocket disconnected; reconnecting");
+      break;
+    case WStype_TEXT: {
+      if (payload == nullptr) break;
+      char eventText[512];
+      const size_t textLength = min(length, sizeof(eventText) - 1);
+      memcpy(eventText, payload, textLength);
+      eventText[textLength] = '\0';
+      if (strstr(eventText, "session_started") != nullptr) {
+        Serial.println("Live speech provider session started");
+      }
+      if (strstr(eventText, "\"type\":\"response_complete\"") != nullptr ||
+          strstr(eventText, "\"type\":\"error\"") != nullptr ||
+          strstr(eventText, "live_session_failed") != nullptr) {
+        if (outputActive_) audio_->stopPlayback();
+        outputActive_ = false;
+      }
       break;
     }
-    remaining -= count;
+    case WStype_BIN:
+      if (payload == nullptr || length == 0 || length > kMaxSocketAudioBytes || length % 2 != 0) break;
+      if (!outputActive_) {
+        outputActive_ = audio_->startPlayback();
+        if (!outputActive_) break;
+      }
+      if (!audio_->playPcm(payload, length)) {
+        audio_->stopPlayback();
+        outputActive_ = false;
+      }
+      break;
+    default:
+      break;
   }
-  audio.stopPlayback();
-  http.end();
-  return ok;
+}
+
+void RobotClient::runNetwork() {
+  WiFi.setAutoReconnect(true);
+  while (true) {
+    if (WiFi.status() != WL_CONNECTED) {
+      Serial.println("Connecting robot to Wi-Fi");
+      if (!connectWifi()) {
+        vTaskDelay(pdMS_TO_TICKS(3000));
+        continue;
+      }
+    }
+    if (socket_.getUrl().isEmpty()) {
+      String authorization = String("Authorization: Bearer ") + ROBOT_DEVICE_TOKEN + "\r\n";
+      socket_.setExtraHeaders(authorization.c_str());
+      socket_.beginSslWithCA(ROBOT_LIVE_WS_HOST, ROBOT_LIVE_WS_PORT, ROBOT_LIVE_WS_PATH, ROBOT_ROOT_CA_PEM);
+    }
+
+    socket_.loop();
+    if (connected_ && !startSent_) {
+      startSent_ = socket_.sendTXT(kStartMessage);
+      if (startSent_) Serial.println("Live PCM16 microphone stream started at 16 kHz mono");
+    }
+    if (connected_ && interruptionPending_) {
+      if (socket_.sendTXT(kInterruptMessage)) interruptionPending_ = false;
+    }
+    if (connected_) {
+      AudioFrame frame;
+      if (xQueueReceive(inputQueue_, &frame, pdMS_TO_TICKS(4)) == pdTRUE) {
+        socket_.sendBIN(reinterpret_cast<const uint8_t*>(frame.samples), frame.frames * sizeof(int16_t));
+      }
+    } else {
+      AudioFrame discarded;
+      xQueueReceive(inputQueue_, &discarded, 0);
+      vTaskDelay(pdMS_TO_TICKS(5));
+    }
+  }
 }

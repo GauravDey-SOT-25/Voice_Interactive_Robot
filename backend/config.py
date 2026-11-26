@@ -15,6 +15,15 @@ class Settings(BaseSettings):
     openai_stt_model: str = "gpt-transcribe"
     openai_tts_model: str = "gpt-4o-mini-tts"
     openai_tts_voice: str = "alloy"
+    live_provider_order: str = "openai_realtime,gemini_live"
+    openai_realtime_model: str = "gpt-realtime-2.1-mini"
+    openai_realtime_voice: str = "marin"
+    google_api_key: str = ""
+    gemini_live_model: str = "gemini-3.8-live"
+    live_session_timeout_seconds: float = 20.0
+    live_silence_duration_ms: int = 800
+    live_vad_threshold: float = 0.5
+    live_prefix_padding_ms: int = 300
     system_prompt: str = (
         "You are a friendly, concise voice assistant inside a small interactive robot. "
         "Speak naturally and keep answers brief."

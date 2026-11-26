@@ -4,6 +4,9 @@
 #define ROBOT_WIFI_SSID "your-wifi"
 #define ROBOT_WIFI_PASSWORD "your-password"
 #define ROBOT_API_URL "https://robot-api.example.com/v1/voice/audio"
+#define ROBOT_LIVE_WS_HOST "robot-api.example.com"
+#define ROBOT_LIVE_WS_PORT 443
+#define ROBOT_LIVE_WS_PATH "/v1/voice/live?provider=auto"
 #define ROBOT_DEVICE_TOKEN "replace-with-long-random-token"
 
 // Root CA that issued the server certificate, in PEM format including BEGIN/END lines.
