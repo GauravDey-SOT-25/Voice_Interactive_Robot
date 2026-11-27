@@ -12,6 +12,8 @@ def make_client(tmp_path, token=""):
         database_path=str(tmp_path / "live.sqlite3"),
         device_auth_token=token,
         ai_mode="mock",
+        openai_api_key="",
+        google_api_key="",
     )
     return TestClient(create_app(settings, MockProvider()))
 

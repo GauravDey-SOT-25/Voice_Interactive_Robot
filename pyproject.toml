@@ -13,6 +13,7 @@ dependencies = [
   "python-multipart>=0.0.9,<1",
   "pydantic-settings>=2.4,<3",
   "openai>=1.50,<3",
+  "certifi>=2024.8.30",
   "websockets>=14,<16",
   "google-genai>=2.20,<3",
 ]

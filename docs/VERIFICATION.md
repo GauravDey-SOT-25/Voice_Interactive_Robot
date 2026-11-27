@@ -1,11 +1,17 @@
 # Verification record
 
+## 2026-11-27 live provider smoke run
+
+- With a locally generated spoken prompt, **Gemini Live passed** the end-to-end adapter smoke test and returned 5,762 bytes of response audio.
+- **OpenAI Realtime did not complete**: the service rejected the session with `credit_balance_exhausted`. TLS verification succeeded using the system's `certifi` CA bundle; add API credits before rerunning.
+- No key values or test audio were committed.
+
 ## 2026-11-26 live WebSocket implementation
 
 - `python3 -m pytest -q`: **15 passed**. Covers existing REST/audio tests plus WebSocket authentication, auto-selection of the local mock stream, duplex PCM transfer, and PCM resampling.
 - `python3 -m ruff check backend scripts`: **passed**.
 - ESP32-S3 firmware compile with Arduino IDE bundled CLI, Arduino-ESP32 3.3.12, and WebSockets 2.7.2: **succeeded**, 2,473,895 bytes program flash and 61,748 bytes global RAM.
-- `python3 scripts/live_provider_smoke.py`: **skipped** because no OpenAI or Google live-provider API key is configured. Actual OpenAI/Gemini speech-in/audio-out results are pending credentials and a spoken fixture.
+- At implementation time, `python3 scripts/live_provider_smoke.py` was **skipped** because provider keys were not configured. Follow-up cloud test outcomes are recorded above.
 - No T4-S3 hardware upload or acoustic test was performed. Wi-Fi/TLS connection, physical VAD/AEC, speaker playback, and barge-in behavior need board verification.
 
 Environment on 2026-11-22:

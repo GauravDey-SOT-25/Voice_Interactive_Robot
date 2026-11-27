@@ -6,11 +6,13 @@ import asyncio
 import base64
 import json
 import logging
+import ssl
 from collections.abc import AsyncIterator
 from dataclasses import dataclass
 from typing import Any, Protocol
 from urllib.parse import quote
 
+import certifi
 import websockets
 from websockets.asyncio.client import ClientConnection
 
@@ -141,6 +143,7 @@ class OpenAIRealtimeProvider:
                 "Authorization": f"Bearer {self.settings.openai_api_key}",
                 "OpenAI-Safety-Identifier": "t4-s3-robot",
             },
+            ssl=ssl.create_default_context(cafile=certifi.where()),
             open_timeout=self.settings.live_session_timeout_seconds,
             ping_interval=20,
             max_size=None,

@@ -22,9 +22,11 @@ async def check_provider(name, provider, pcm: bytes, timeout: float) -> bool:
     event_task = asyncio.create_task(collect_audio(session))
     try:
         frame_bytes = 640  # 20 ms at 16 kHz, mono PCM16.
-        for offset in range(0, len(pcm), frame_bytes):
-            await session.send_audio(pcm[offset : offset + frame_bytes])
-            await asyncio.sleep(0.020)
+        input_pcm = pcm + (b"\x00\x00" * 24_000)  # Add one second of silence for server-side endpointing.
+        for offset in range(0, len(input_pcm), frame_bytes):
+            frame = input_pcm[offset : offset + frame_bytes]
+            await session.send_audio(frame)
+            await asyncio.sleep(len(frame) / (16_000 * 2))
         received_audio = await asyncio.wait_for(event_task, timeout=timeout)
     finally:
         if not event_task.done():
@@ -75,7 +77,11 @@ async def main() -> int:
     for (name, _), outcome in zip(configured, outcomes):
         if isinstance(outcome, BaseException):
             failures += 1
-            print(f"{name}: FAIL ({type(outcome).__name__})")
+            message = str(outcome)
+            for key in (settings.openai_api_key, settings.google_api_key):
+                if key:
+                    message = message.replace(key, "<redacted>")
+            print(f"{name}: FAIL ({type(outcome).__name__}: {message[:300]})")
         elif not outcome:
             failures += 1
     return 1 if failures else 0
