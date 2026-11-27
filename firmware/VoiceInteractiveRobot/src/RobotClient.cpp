@@ -19,6 +19,9 @@
 namespace {
 constexpr size_t kAudioQueueDepth = 8;
 constexpr size_t kMaxSocketAudioBytes = 8192;
+constexpr uint32_t kWifiQualityCheckMs = 5000;
+constexpr uint32_t kWifiReselectCooldownMs = 30000;
+constexpr int kWifiWeakSignalDbm = -78;
 constexpr char kStartMessage[] =
     "{\"type\":\"start\",\"format\":\"s16le\",\"sample_rate\":16000,\"channels\":1}";
 constexpr char kInterruptMessage[] = "{\"type\":\"interrupt\"}";
@@ -27,16 +30,20 @@ constexpr char kInterruptMessage[] = "{\"type\":\"interrupt\"}";
 RobotClient* RobotClient::activeClient_ = nullptr;
 
 bool RobotClient::connectWifi() {
-  WiFi.mode(WIFI_STA);
-  WiFi.begin(ROBOT_WIFI_SSID, ROBOT_WIFI_PASSWORD);
-  const uint32_t start = millis();
-  while (WiFi.status() != WL_CONNECTED && millis() - start < 20000) delay(250);
-  return WiFi.status() == WL_CONNECTED;
+  return wifiMulti_.run(10000) == WL_CONNECTED;
 }
 
 bool RobotClient::startLive(AudioEngine& audio) {
   audio_ = &audio;
   activeClient_ = this;
+  WiFi.mode(WIFI_STA);
+  constexpr size_t wifiNetworkCount = sizeof(ROBOT_WIFI_NETWORKS) / sizeof(ROBOT_WIFI_NETWORKS[0]);
+  for (size_t i = 0; i < wifiNetworkCount; ++i) {
+    if (!wifiMulti_.addAP(ROBOT_WIFI_NETWORKS[i].ssid, ROBOT_WIFI_NETWORKS[i].password)) {
+      Serial.printf("Could not add saved Wi-Fi network %u\n", static_cast<unsigned>(i + 1));
+    }
+  }
+  wifiMulti_.setStrictMode(true);
   inputQueue_ = xQueueCreate(kAudioQueueDepth, sizeof(AudioFrame));
   if (inputQueue_ == nullptr) return false;
   socket_.onEvent(socketEvent);
@@ -122,10 +129,23 @@ void RobotClient::handleSocketEvent(WStype_t type, uint8_t* payload, size_t leng
 }
 
 void RobotClient::runNetwork() {
-  WiFi.setAutoReconnect(true);
   while (true) {
+    const uint32_t now = millis();
+    if (now - lastWifiQualityCheckMs_ >= kWifiQualityCheckMs) {
+      lastWifiQualityCheckMs_ = now;
+      if (WiFi.status() == WL_CONNECTED && WiFi.RSSI() < kWifiWeakSignalDbm &&
+          now - lastWifiReselectMs_ >= kWifiReselectCooldownMs) {
+        Serial.printf("Wi-Fi signal weak (%d dBm); rescanning saved networks\n", WiFi.RSSI());
+        lastWifiReselectMs_ = now;
+        socket_.disconnect();
+        connected_ = false;
+        startSent_ = false;
+        WiFi.disconnect(false, false);
+        vTaskDelay(pdMS_TO_TICKS(100));
+      }
+    }
     if (WiFi.status() != WL_CONNECTED) {
-      Serial.println("Connecting robot to Wi-Fi");
+      Serial.println("Scanning saved Wi-Fi networks");
       if (!connectWifi()) {
         vTaskDelay(pdMS_TO_TICKS(3000));
         continue;

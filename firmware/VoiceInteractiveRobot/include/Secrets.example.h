@@ -1,8 +1,15 @@
 #pragma once
 
 // Copy to Secrets.h (ignored by Git), then fill in local values.
-#define ROBOT_WIFI_SSID "your-wifi"
-#define ROBOT_WIFI_PASSWORD "your-password"
+struct RobotWifiCredential {
+  const char* ssid;
+  const char* password;
+};
+
+static const RobotWifiCredential ROBOT_WIFI_NETWORKS[] = {
+    {"your-wifi", "your-password"},
+    // Add more entries; WiFiMulti selects the strongest configured network.
+};
 #define ROBOT_API_URL "https://robot-api.example.com/v1/voice/audio"
 #define ROBOT_LIVE_WS_HOST "robot-api.example.com"
 #define ROBOT_LIVE_WS_PORT 443

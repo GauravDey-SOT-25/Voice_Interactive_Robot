@@ -2,7 +2,7 @@
 
 Open `VoiceInteractiveRobot.ino` directly in Arduino IDE with Arduino-ESP32 3.x. The sketch uses the IDF 5 standard I2S driver, ESP-SR AFE, and the Arduino WebSockets library. Install the WebSockets library in Arduino IDE Library Manager (`WebSockets` by Markus Sattler, version 2.7.2 or newer).
 
-Copy `include/Secrets.example.h` to `include/Secrets.h` and set Wi-Fi credentials, the live WebSocket host/port/path, device bearer token, and trusted root certificate. `Secrets.h` is ignored by Git. The firmware connects to `/v1/voice/live?provider=auto` over verified TLS.
+Copy `include/Secrets.example.h` to `include/Secrets.h` and set the Wi-Fi credential list, live WebSocket host/port/path, device bearer token, and trusted root certificate. `Secrets.h` is ignored by Git. Add one `{ssid, password}` entry per network. The firmware chooses the strongest saved network during connection/reconnection and rescans if the current signal drops below -78 dBm (with a 30-second switch cooldown). It connects to `/v1/voice/live?provider=auto` over verified TLS.
 
 At boot, the INMP441 microphone and AFE start immediately. On-device WebRTC VAD and ESP-SR AEC remain active while enhanced 16 kHz mono PCM streams to FastAPI. The backend opens one bidirectional live speech session; generated 24 kHz mono PCM is streamed to the MAX98357A speaker. Sustained VAD speech during playback stops local playback and sends an interrupt event. The microphone stream stays open throughout.
 

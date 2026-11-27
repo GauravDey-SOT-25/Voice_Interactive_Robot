@@ -3,6 +3,7 @@
 #include <Arduino.h>
 #include <stddef.h>
 #include <stdint.h>
+#include <WiFiMulti.h>
 #include <WebSocketsClient.h>
 
 #include <freertos/FreeRTOS.h>
@@ -27,11 +28,14 @@ class RobotClient {
   void handleSocketEvent(WStype_t type, uint8_t* payload, size_t length);
 
   AudioEngine* audio_ = nullptr;
+  WiFiMulti wifiMulti_;
   QueueHandle_t inputQueue_ = nullptr;
   WebSocketsClient socket_;
   volatile bool connected_ = false;
   volatile bool startSent_ = false;
   volatile bool interruptionPending_ = false;
   bool outputActive_ = false;
+  uint32_t lastWifiQualityCheckMs_ = 0;
+  uint32_t lastWifiReselectMs_ = 0;
   static RobotClient* activeClient_;
 };

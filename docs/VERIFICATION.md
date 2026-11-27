@@ -1,5 +1,11 @@
 # Verification record
 
+## 2026-11-27 multi-network Wi-Fi
+
+- Firmware compile succeeded with the saved-network list and RSSI-triggered reselection: 2,508,971 bytes program flash and 61,988 bytes global RAM.
+- The device's two Wi-Fi entries are stored in ignored local `Secrets.h`; credential values are not tracked or pushed.
+- Automatic strongest-network selection and -78 dBm reselection have not been exercised on the physical board.
+
 ## 2026-11-27 live provider smoke run
 
 - With a locally generated spoken prompt, **Gemini Live passed** the end-to-end adapter smoke test and returned 5,762 bytes of response audio.

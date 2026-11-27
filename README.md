@@ -58,7 +58,7 @@ Open `firmware/VoiceInteractiveRobot/VoiceInteractiveRobot.ino` in Arduino IDE. 
 | Upload Mode / Speed | UART0 / Hardware CDC / 921600 |
 | USB Mode | Hardware CDC and JTAG |
 
-Set Wi-Fi, API URL, bearer token, and trusted root CA in `include/Secrets.h` (this local-only file is ignored by Git; start from `Secrets.example.h`). Compile and upload over USB-C. After boot, speech capture starts automatically. Silence finalizes a phrase after 800 ms by default; the robot plays the response and resumes listening automatically. A continuous user utterance during playback stops the current response and is processed as the next turn.
+Set the saved Wi-Fi list, live WebSocket host/port/path, bearer token, and trusted root CA in `include/Secrets.h` (this local-only file is ignored by Git; start from `Secrets.example.h`). The firmware selects the strongest saved network when connecting and rescans if its RSSI drops below -78 dBm. Compile and upload over USB-C. After boot, the microphone streams continuously; VAD-driven live responses play through the speaker, and sustained speech during playback interrupts the response.
 
 The firmware keeps a WebSocket open to `/v1/voice/live?provider=auto`, sends enhanced 16 kHz mono signed 16-bit little-endian PCM frames as binary messages, and receives 24 kHz mono PCM frames. JSON control messages announce the stream and signal interruption. Use a WSS endpoint with a certificate trusted by the ESP32. The older HTTP voice endpoints remain available for clients that use turn-based audio uploads.
 
